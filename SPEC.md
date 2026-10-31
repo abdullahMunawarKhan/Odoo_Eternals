@@ -49,7 +49,9 @@ Role rules:
 - Public signup always creates a `customer`. The role is never read from the signup form or user metadata sent by the client.
 - Staff are created only by the `create-staff` Edge Function, which first verifies the caller is an admin.
 - The first admin is created by manually setting `profiles.role = 'admin'` in the database.
-- Helper SQL functions used in RLS: `public.current_role()` and `public.is_staff_or_admin()`, both `security definer` with a fixed `search_path`.
+- Helper SQL functions used in RLS: `public.current_role()`, `public.is_staff_or_admin()` and `public.is_active_user()`, all `security definer` with a fixed `search_path`.
+- Deactivation: `profiles.is_active = false` means no access. `current_role()` returns null and `is_staff_or_admin()` returns false for an inactive user, and every "own row" policy also requires `is_active_user()`, so a deactivated customer loses their profile, customer record and (in later Parts) subscriptions, invoices and payments. The user can still sign in to Supabase Auth, but every query returns nothing; the app should treat an empty profile as "account inactive, contact an admin". Every future "own data" policy must include `public.is_active_user()`.
+- `profiles.is_active` and `profiles.role` can never be changed directly by a client. The only way to change `is_active` is the admin-only function `public.set_user_active(user_id, active)`: an admin cannot deactivate themselves, and it changes nothing else. Role changes happen only via SQL (first admin) or the `create-staff` function.
 
 ## 2. Authentication rules
 

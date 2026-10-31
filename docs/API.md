@@ -46,7 +46,26 @@ Columns: `id`, `email`, `full_name`, `role` (`admin` | `staff` | `customer`), `i
 | update | any row (not `role`, not `id`) | own row (`full_name` only) | own row (`full_name` only) |
 | delete | no | no | no |
 
-`role` can never be changed from the client, by anyone. A client update that changes `role` or `id` fails with Postgres error `42501`. Only admins may change `is_active` or `email`. Roles change only via SQL (first admin) or the `create-staff` function.
+`role`, `id` and `is_active` can never be changed by a direct client update, by anyone (admins included). Such an update fails with Postgres error `42501`. Only admins may change `email`. Roles change only via SQL (first admin) or the `create-staff` function. `is_active` changes only through `set_user_active` (below).
+
+**Deactivated users (`is_active = false`) have no access at all**, including to their own profile and customer row: every query returns an empty result and `current_role()` returns null. They can still sign in to Supabase Auth, so after login, if `profiles` returns no row for the signed-in user, show "Your account is inactive or has no access. Contact an admin." and sign them out. The shared public catalog views (`products_public`, ...) are reference data and stay readable.
+
+#### Function `set_user_active(user_id uuid, active boolean) returns profiles`
+
+Admin only. Sets `profiles.is_active` and changes nothing else (no role change). Returns the updated profile row.
+
+```js
+const { data: profile, error } = await supabase.rpc('set_user_active', { user_id: staffId, active: false })
+// data: { id, email, full_name, role, is_active, created_at }
+```
+
+| `error.code` | Message | When |
+|---|---|---|
+| `42501` | Only an admin can activate or deactivate accounts | caller is not an active admin (staff, customer, deactivated admin, anon) |
+| `22023` | You cannot deactivate your own account | admin passes their own id with `active: false` |
+| `P0002` | User not found | no such profile |
+
+Admins can deactivate other admins. Hide the toggle for your own row in the UI.
 
 ### customers
 Columns: `id`, `user_id` (nullable, unique, FK profiles), `name`, `email` (unique), `phone`, `company`, `address`, `created_at`.
@@ -58,7 +77,7 @@ Columns: `id`, `user_id` (nullable, unique, FK profiles), `name`, `email` (uniqu
 
 A customer without a login has `user_id = null` and is linked when that email signs up. Email matching is case-insensitive; the trigger stores lowercase emails, so store customer emails in lowercase.
 
-Helper SQL functions (callable by signed-in users, e.g. `supabase.rpc('current_role')`): `public.current_role()` returns the caller's role or null; `public.is_staff_or_admin()` returns boolean.
+Helper SQL functions (callable by signed-in users, e.g. `supabase.rpc('current_role')`): `public.current_role()` returns the caller's role or null (null for inactive users); `public.is_staff_or_admin()` returns boolean (false for inactive users); `public.is_active_user()` returns whether the caller's profile is active.
 
 ## 4. Edge Function `create-staff`
 
@@ -104,6 +123,29 @@ Errors: always `{ "error": { "code": string, "message": string, "field"?: string
 | 500 | `internal_error` / `server_misconfigured` | unexpected failure (a half-created user is rolled back) |
 
 CORS: `Access-Control-Allow-Origin: *`, headers `authorization, x-client-info, apikey, content-type`, methods `POST, OPTIONS`.
+
+### 4.1 Edge Function `invite-staff` (status: written by the frontend teammate, needs fixes)
+
+`POST {SUPABASE_URL}/functions/v1/invite-staff`, admin only. It is deployed on the hosted project but is **not in this repo** (it exists on the `Abdullah` and `sanskar` branches only). Prefer `create-staff` (section 4), which is the SPEC section 8 design. Behaviour of the deployed version, as reviewed:
+
+Request: `{ "email": string, "full_name": string, "redirectTo": string }`. Sends a Supabase invite email; the invited user follows the link, lands on `redirectTo`, and sets their own password there (the 9-character rule is then enforced only by the frontend form and the Auth minimum length, not server-side). `redirectTo` is honoured only if it is in the project's Redirect URLs list (Dashboard > Authentication > URL Configuration).
+
+| Status | Body | When |
+|---|---|---|
+| 200 | `{ "message": string, "user": { "id", "email", "full_name", "role": "staff" } }` | invited |
+| 400 | `{ "error": string }` | invalid email, missing name, duplicate email (Auth message "already been registered"), email rate limit exceeded |
+| 401 | `{ "error": string }` | missing or invalid token |
+| 403 | `{ "error": string }` | caller is not an admin |
+| 500 | `{ "error": string }` | misconfiguration, malformed JSON body, or profile update failure |
+
+Errors here are `{ "error": string }`, unlike `create-staff`'s `{ "error": { code, message } }`.
+
+Known problems (open):
+- It upserts `profiles.updated_at`, which no longer exists, so after the schema change the profile step fails and the function deletes the user it just invited. A successful invite is not currently possible.
+- It does not remove the `customers` row the signup trigger creates, so invited staff would appear in customers (and a rolled-back invite leaves an orphan customers row).
+- It does not check `profiles.is_active`.
+
+`scripts/tests/part1.mjs` covers it: no token 401, staff 403, customer 403, duplicate email rejected (pass today), and "admin invite creates staff with no customers row" (cannot pass until the function is fixed; it can also be blocked by Supabase's built-in email rate limit, which allows only a few auth emails per hour).
 
 ## 5. Catalog (Part 2)
 
