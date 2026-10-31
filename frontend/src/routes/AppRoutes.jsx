@@ -32,14 +32,38 @@ const AdminSubscriptionDetailPage = lazy(() => import('../pages/admin/AdminSubsc
 const AdminInvoicesPage = lazy(() => import('../pages/admin/AdminInvoicesPage').then((m) => ({ default: m.AdminInvoicesPage })));
 const AdminInvoiceDetailPage = lazy(() => import('../pages/admin/AdminInvoiceDetailPage').then((m) => ({ default: m.AdminInvoiceDetailPage })));
 const AdminPaymentsPage = lazy(() => import('../pages/admin/AdminPaymentsPage').then((m) => ({ default: m.AdminPaymentsPage })));
+// Staff Pages (Lazy loaded)
+const StaffOverview = lazy(() => import('../features/staff/pages/StaffOverview').then((m) => ({ default: m.StaffOverview })));
+const StaffProfile = lazy(() => import('../features/staff/pages/StaffProfile').then((m) => ({ default: m.StaffProfile })));
+const StaffCustomers = lazy(() => import('../features/staff/pages/Customers').then((m) => ({ default: m.Customers })));
+const StaffCustomerDetails = lazy(() => import('../features/staff/pages/CustomerDetails').then((m) => ({ default: m.CustomerDetails })));
+const StaffQuotations = lazy(() => import('../features/staff/pages/Quotations').then((m) => ({ default: m.Quotations })));
+const StaffCreateQuotation = lazy(() => import('../features/staff/pages/CreateQuotation').then((m) => ({ default: m.CreateQuotation })));
+const StaffQuotationDetails = lazy(() => import('../features/staff/pages/QuotationDetails').then((m) => ({ default: m.QuotationDetails })));
+const StaffSubscriptions = lazy(() => import('../features/staff/pages/Subscriptions').then((m) => ({ default: m.Subscriptions })));
+const StaffCreateSubscription = lazy(() => import('../features/staff/pages/CreateSubscription').then((m) => ({ default: m.CreateSubscription })));
+const StaffSubscriptionDetails = lazy(() => import('../features/staff/pages/SubscriptionDetails').then((m) => ({ default: m.SubscriptionDetails })));
+const StaffInvoices = lazy(() => import('../features/staff/pages/Invoices').then((m) => ({ default: m.Invoices })));
+const StaffInvoiceDetails = lazy(() => import('../features/staff/pages/InvoiceDetails').then((m) => ({ default: m.InvoiceDetails })));
+const StaffPayments = lazy(() => import('../features/staff/pages/Payments').then((m) => ({ default: m.Payments })));
+const StaffRecordPayment = lazy(() => import('../features/staff/pages/RecordPayment').then((m) => ({ default: m.RecordPayment })));
 
 // Staff Pages (Lazy loaded)
-const StaffOverview = lazy(() => import('../features/staff/StaffOverview').then((m) => ({ default: m.StaffOverview })));
-const StaffProfile = lazy(() => import('../features/staff/StaffProfile').then((m) => ({ default: m.StaffProfile })));
+
+
 
 // Customer Pages (Lazy loaded)
-const CustomerOverview = lazy(() => import('../features/customer/CustomerOverview').then((m) => ({ default: m.CustomerOverview })));
-const CustomerSettings = lazy(() => import('../features/customer/CustomerSettings').then((m) => ({ default: m.CustomerSettings })));
+const CustomerOverview = lazy(() => import('../features/customer/pages/CustomerOverview').then((m) => ({ default: m.CustomerOverview })));
+const MySubscriptions = lazy(() => import('../features/customer/pages/MySubscriptions').then((m) => ({ default: m.MySubscriptions })));
+const SubscriptionDetails = lazy(() => import('../features/customer/pages/SubscriptionDetails').then((m) => ({ default: m.SubscriptionDetails })));
+const MyInvoices = lazy(() => import('../features/customer/pages/MyInvoices').then((m) => ({ default: m.MyInvoices })));
+const InvoiceDetails = lazy(() => import('../features/customer/pages/InvoiceDetails').then((m) => ({ default: m.InvoiceDetails })));
+const PaymentHistory = lazy(() => import('../features/customer/pages/PaymentHistory').then((m) => ({ default: m.PaymentHistory })));
+const CustomerProfile = lazy(() => import('../features/customer/pages/CustomerProfile').then((m) => ({ default: m.CustomerProfile })));
+const AccountSettings = lazy(() => import('../features/customer/pages/AccountSettings').then((m) => ({ default: m.AccountSettings })));
+
+// Landing Page (Lazy loaded)
+const Home = lazy(() => import('../pages/Home').then((m) => ({ default: m.Home })));
 
 // UI Helpers
 import { ComingSoon } from '../components/ui/ComingSoon';
@@ -79,12 +103,13 @@ export function AppRoutes() {
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
         {/* Root Route */}
-        <Route path="/" element={<RootRedirect />} />
+        <Route path="/" element={<Home />} />
 
         {/* Public Auth Routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginForm />} />
           <Route path="/register" element={<RegisterForm />} />
+          <Route path="/signup" element={<RegisterForm />} />
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/reset-password" element={<ResetPasswordForm />} />
         </Route>
@@ -103,10 +128,10 @@ export function AppRoutes() {
           <Route index element={<AdminOverview />} />
           <Route path="staff" element={<AdminStaffPage />} />
           <Route path="products" element={<AdminProductsPage />} />
-          <Route path="plans" element={<AdminPlansPage />} />
           <Route path="taxes" element={<AdminTaxesPage />} />
           <Route path="discounts" element={<AdminDiscountsPage />} />
           <Route path="templates" element={<AdminTemplatesPage />} />
+          <Route path="plans" element={<AdminPlansPage />} />
           <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
           <Route path="subscriptions/:id" element={<AdminSubscriptionDetailPage />} />
           <Route path="invoices" element={<AdminInvoicesPage />} />
@@ -143,43 +168,28 @@ export function AppRoutes() {
         >
           <Route index element={<StaffOverview />} />
           <Route path="profile" element={<StaffProfile />} />
-          <Route
-            path="customers"
-            element={
-              <ComingSoon
-                title="Customer Directory"
-                description="Access customer accounts, assign account managers, and track customer satisfaction."
-                features={[
-                  'Searchable customer database with company details',
-                  'Subscription plan inspection and history',
-                  'Internal staff customer notes and activity logs',
-                  'Support escalation and contact records',
-                ]}
-                backPath="/staff"
-              />
-            }
-          />
-          <Route
-            path="quotations"
-            element={
-              <ComingSoon
-                title="Quotations & Proposals"
-                description="Draft custom enterprise pricing proposals and send quotations for customer signoff."
-                features={[
-                  'Custom enterprise quotation builder',
-                  'Volume discounting and one-off setup fees',
-                  'E-signature and proposal approval tracking',
-                  'One-click conversion to active subscription',
-                ]}
-                backPath="/staff"
-              />
-            }
-          />
-          <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
-          <Route path="subscriptions/:id" element={<AdminSubscriptionDetailPage />} />
-          <Route path="invoices" element={<AdminInvoicesPage />} />
-          <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
-          <Route path="payments" element={<AdminPaymentsPage />} />
+
+          {/* Customers */}
+          <Route path="customers" element={<StaffCustomers />} />
+          <Route path="customers/:id" element={<StaffCustomerDetails />} />
+
+          {/* Quotations */}
+          <Route path="quotations" element={<StaffQuotations />} />
+          <Route path="quotations/new" element={<StaffCreateQuotation />} />
+          <Route path="quotations/:id" element={<StaffQuotationDetails />} />
+
+          {/* Subscriptions */}
+          <Route path="subscriptions" element={<StaffSubscriptions />} />
+          <Route path="subscriptions/new" element={<StaffCreateSubscription />} />
+          <Route path="subscriptions/:id" element={<StaffSubscriptionDetails />} />
+
+          {/* Invoices */}
+          <Route path="invoices" element={<StaffInvoices />} />
+          <Route path="invoices/:id" element={<StaffInvoiceDetails />} />
+
+          {/* Payments */}
+          <Route path="payments" element={<StaffPayments />} />
+          <Route path="payments/new" element={<StaffRecordPayment />} />
         </Route>
 
         {/* Customer Protected Routes */}
@@ -194,56 +204,19 @@ export function AppRoutes() {
           }
         >
           <Route index element={<CustomerOverview />} />
-          <Route path="settings" element={<CustomerSettings />} />
-          <Route
-            path="subscriptions"
-            element={
-              <ComingSoon
-                title="My Subscriptions"
-                description="Review your active subscription plan, manage licenses, or explore plan upgrades."
-                features={[
-                  'Current plan benefits and limits overview',
-                  'Switch between monthly and annual billing',
-                  'Self-service plan tier upgrades',
-                  'Add-on feature activation',
-                ]}
-                backPath="/customer"
-              />
-            }
-          />
-          <Route
-            path="invoices"
-            element={
-              <ComingSoon
-                title="My Invoices"
-                description="Access and download your complete invoice history with itemized breakdowns."
-                features={[
-                  'Download tax-compliant PDF invoices',
-                  'Itemized charges and tax breakdown',
-                  'Payment receipts and transaction timestamps',
-                  'Filter invoices by date range and status',
-                ]}
-                backPath="/customer"
-              />
-            }
-          />
-          <Route
-            path="payments"
-            element={
-              <ComingSoon
-                title="Payment History"
-                description="Manage your credit cards, review payment attempts, and update billing contacts."
-                features={[
-                  'Secure payment method storage',
-                  'Automatic retry on failed charges',
-                  'Billing contact email notifications',
-                  'Default payment method selection',
-                ]}
-                backPath="/customer"
-              />
-            }
-          />
+          <Route path="overview" element={<Navigate to="/customer" replace />} />
+          <Route path="subscriptions" element={<MySubscriptions />} />
+          <Route path="subscriptions/:id" element={<SubscriptionDetails />} />
+          <Route path="invoices" element={<MyInvoices />} />
+          <Route path="invoices/:id" element={<InvoiceDetails />} />
+          <Route path="payments" element={<PaymentHistory />} />
+          <Route path="profile" element={<CustomerProfile />} />
+          <Route path="settings" element={<AccountSettings />} />
         </Route>
+
+        {/* Support /portal redirect aliases */}
+        <Route path="/portal" element={<Navigate to="/customer" replace />} />
+        <Route path="/portal/*" element={<Navigate to="/customer" replace />} />
 
         {/* 404 Catch-All */}
         <Route

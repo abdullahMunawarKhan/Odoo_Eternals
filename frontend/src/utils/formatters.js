@@ -30,6 +30,14 @@ export function formatShortDate(dateString) {
   }
 }
 
+export function formatCurrency(amount) {
+  const num = Number(amount || 0);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(num);
+}
+
 export function formatRoleBadge(role) {
   switch (role) {
     case 'admin':

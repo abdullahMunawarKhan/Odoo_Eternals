@@ -105,7 +105,6 @@ export const authService = {
       .from('profiles')
       .update({
         full_name: fullName.trim(),
-        updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
       .select()
