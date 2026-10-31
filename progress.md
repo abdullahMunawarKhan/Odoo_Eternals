@@ -32,4 +32,4 @@ Work goes on the `sarthak` branch only.
 - Supabase's built-in email rate limit blocks repeated auth email tests (invite success path unverified).
 
 ## Not started
-- Part 3 Subscriptions, Part 4 Billing, Part 5 Payments, Part 6 Dashboard / portal / full seed.
+- Part 4 Billing, Part 5 Payments, Part 6 Dashboard / portal / full seed.
