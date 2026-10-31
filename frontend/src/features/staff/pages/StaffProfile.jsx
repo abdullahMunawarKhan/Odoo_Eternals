@@ -1,0 +1,2 @@
+export { StaffProfile } from '../StaffProfile';
+

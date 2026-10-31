@@ -201,3 +201,144 @@ export function generateInvoicePDF(invoice, customer) {
   doc.save(filename);
 }
 
+export function generateQuotationPDF(quotation, customer) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  let y = 20;
+
+  // Header / Branding
+  doc.setFillColor(30, 41, 59);
+  doc.rect(0, 0, pageWidth, 28, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SubFlow', margin, 15);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(203, 213, 225);
+  doc.text('Subscription Management System', margin, 21);
+
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text('QUOTATION', pageWidth - margin - 35, 17);
+
+  y = 38;
+
+  // Details
+  doc.setTextColor(30, 41, 59);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Prepared For:', margin, y);
+  doc.text('Quotation Details:', pageWidth / 2 + 10, y);
+
+  y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+
+  const customerName = customer?.name || 'Valued Customer';
+  const company = customer?.company || '';
+  const email = customer?.email || '';
+  const phone = customer?.phone || '';
+  const address = customer?.address || '';
+
+  doc.text(customerName, margin, y);
+  if (company) { y += 4.5; doc.text(company, margin, y); }
+  if (email) { y += 4.5; doc.text(email, margin, y); }
+  if (phone) { y += 4.5; doc.text(phone, margin, y); }
+  if (address) { y += 4.5; doc.text(address, margin, y, { maxWidth: 75 }); }
+
+  let rightY = 44;
+  const quoNumber = quotation?.number || `QUO-${quotation?.id?.slice(0, 8)}`;
+  const status = (quotation?.status || 'draft').toUpperCase();
+
+  doc.text(`Quotation #: ${quoNumber}`, pageWidth / 2 + 10, rightY);
+  rightY += 4.5;
+  doc.text(`Date: ${formatDate(quotation?.created_at || new Date())}`, pageWidth / 2 + 10, rightY);
+  rightY += 4.5;
+  doc.text(`Valid Until: ${formatDate(quotation?.quotation_valid_until || quotation?.expiry_date)}`, pageWidth / 2 + 10, rightY);
+  rightY += 4.5;
+  doc.text(`Status: ${status}`, pageWidth / 2 + 10, rightY);
+  if (quotation?.plan?.name) {
+    rightY += 4.5;
+    doc.text(`Base Plan: ${quotation.plan.name}`, pageWidth / 2 + 10, rightY);
+  }
+
+  y = Math.max(y, rightY) + 12;
+
+  // Line items
+  doc.setFillColor(241, 245, 249);
+  doc.rect(margin, y, pageWidth - margin * 2, 8, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(51, 65, 85);
+
+  doc.text('Item Description', margin + 4, y + 5.5);
+  doc.text('Qty', margin + 95, y + 5.5);
+  doc.text('Unit Price', margin + 115, y + 5.5);
+  doc.text('Total', pageWidth - margin - 4, y + 5.5, { align: 'right' });
+
+  y += 10;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(71, 85, 105);
+
+  let subtotal = 0;
+  // If plan has price, show plan line
+  if (Number(quotation?.plan?.price || 0) > 0) {
+    const pPrice = Number(quotation.plan.price);
+    subtotal += pPrice;
+    doc.text(`Plan Base Fee: ${quotation.plan.name}`, margin + 4, y);
+    doc.text('1', margin + 95, y);
+    doc.text(`$${pPrice.toFixed(2)}`, margin + 115, y);
+    doc.text(`$${pPrice.toFixed(2)}`, pageWidth - margin - 4, y, { align: 'right' });
+    y += 7;
+  }
+
+  const lines = quotation?.lines || quotation?.subscription_lines || [];
+  lines.forEach((line) => {
+    const desc = line.product?.name || line.description || 'Product Line';
+    const qty = line.quantity || 1;
+    const uPrice = Number(line.unit_price || 0);
+    const amt = Number(line.amount || qty * uPrice);
+    subtotal += amt;
+
+    doc.text(desc, margin + 4, y);
+    doc.text(String(qty), margin + 95, y);
+    doc.text(`$${uPrice.toFixed(2)}`, margin + 115, y);
+    doc.text(`$${amt.toFixed(2)}`, pageWidth - margin - 4, y, { align: 'right' });
+    y += 7;
+  });
+
+  y += 5;
+  doc.setDrawColor(226, 232, 240);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 6;
+
+  const totalBoxWidth = 85;
+  const totalBoxX = pageWidth - margin - totalBoxWidth;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 41, 59);
+  doc.text('Estimated Total:', totalBoxX, y);
+  doc.text(`$${subtotal.toFixed(2)}`, pageWidth - margin - 4, y, { align: 'right' });
+
+  // Footer notes
+  y = doc.internal.pageSize.getHeight() - 25;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(148, 163, 184);
+  doc.text('This quotation is an estimate. Final taxes and applicable discounts will be applied on invoice.', margin, y);
+  doc.text(`Generated on ${new Date().toLocaleDateString()}`, margin, y + 4.5);
+
+  doc.save(`${quoNumber || 'quotation'}.pdf`);
+}
+
