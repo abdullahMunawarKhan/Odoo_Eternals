@@ -337,6 +337,30 @@ const { data: detail } = await supabase
 const { error: e4 } = await supabase.rpc('attach_discount', { p_subscription_id: subId, p_discount_id: discountId })
 ```
 
-## 7. Not built yet
+## 7. Billing and payments (Part 4, smallest version)
 
-Billing, payments, dashboard views: later Parts.
+Clients only get SELECT on these tables; every write goes through a function. Staff/admin see all rows, a customer only their own (and only while active). Money is `numeric(12,2)`.
+
+**Tables:** `invoices` (`number` INV-00001, `subscription_id`, `customer_id`, `period_start`, `period_end`, `issue_date`, `due_date`, `status` draft/confirmed/paid/cancelled, `subtotal`, `discount_total`, `tax_total`, `total`, `amount_paid`, `sent_at`; unique `(subscription_id, period_start)`), `invoice_lines` (`invoice_id`, `kind` plan_fee/product, `product_id`, `description`, `quantity`, `unit_price`, `base_amount`, `discount_amount`, `tax_id`, `tax_amount`, `line_total`), `payments` (`invoice_id`, `method` cash/bank_transfer/card/upi/cheque/other, `amount`, `payment_date`, `note`, `recorded_by`).
+
+**Functions** (staff/admin only, else `42501`; call with `supabase.rpc(name, {named args})`):
+- `generate_invoice(sub_id uuid, period_start date) returns uuid`: plan fee line + one line per subscription line, best product-level discount, tax per line on the net, due date from the payment term. Called twice for one period it returns the same id and changes nothing.
+- `run_billing(as_of date default current_date) returns table(created, skipped, errors)`: bills active subscriptions with `next_billing_date <= as_of`, catching up missed periods and advancing `next_billing_date`. Safe to run twice.
+- `invoice_confirm(invoice_id)` draft to confirmed; `invoice_cancel(invoice_id)` (not if paid or has payments); `invoice_send(invoice_id)` sets `sent_at`. Each returns the invoice row.
+- `record_payment(invoice_id uuid, method payment_method, amount numeric, payment_date date default current_date, note text default null) returns payments`: invoice must be confirmed, `0 < amount <= outstanding`; flips the invoice to `paid` when fully paid.
+
+**Views** (run with the caller's RLS): `v_invoice_summary` (invoice + `customer_name`, `customer_email`, `subscription_number`, `outstanding`, `is_overdue`), `v_overdue_invoices` (`days_overdue`, `outstanding`), `v_dashboard_summary` (one row: `active_subscriptions`, `total_revenue`, `outstanding_amount`, `overdue_count`, `overdue_amount`).
+
+**Errors (`error.message`):** `Payments can only be recorded on a confirmed invoice (this one is draft)`, `Payment of X is more than the outstanding amount of Y`, `Payment amount must be greater than 0`, `Only a draft invoice can be confirmed ...`, `A paid invoice cannot be cancelled`, `Invoice not found` (`P0002`).
+
+```js
+await supabase.rpc('run_billing')                       // [{ created, skipped, errors }]
+await supabase.rpc('record_payment', { invoice_id, method: 'upi', amount: '500.00', note: 'part' })
+const { data } = await supabase.from('v_dashboard_summary').select('*').single()
+```
+
+Demo data: `supabase/seed/demo.sql` (idempotent, `DEMO-` customers).
+
+## 8. Not built yet
+
+Subscription-level discounts at invoice time, pg_cron schedule, monthly revenue view.
