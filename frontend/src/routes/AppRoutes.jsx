@@ -22,10 +22,25 @@ const ResetPasswordForm = lazy(() => import('../features/auth/ResetPasswordForm'
 // Admin Pages (Lazy loaded)
 const AdminOverview = lazy(() => import('../pages/admin/AdminOverview').then((m) => ({ default: m.AdminOverview })));
 const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage').then((m) => ({ default: m.AdminStaffPage })));
+// Staff Pages (Lazy loaded)
+const StaffOverview = lazy(() => import('../features/staff/pages/StaffOverview').then((m) => ({ default: m.StaffOverview })));
+const StaffProfile = lazy(() => import('../features/staff/pages/StaffProfile').then((m) => ({ default: m.StaffProfile })));
+const StaffCustomers = lazy(() => import('../features/staff/pages/Customers').then((m) => ({ default: m.Customers })));
+const StaffCustomerDetails = lazy(() => import('../features/staff/pages/CustomerDetails').then((m) => ({ default: m.CustomerDetails })));
+const StaffQuotations = lazy(() => import('../features/staff/pages/Quotations').then((m) => ({ default: m.Quotations })));
+const StaffCreateQuotation = lazy(() => import('../features/staff/pages/CreateQuotation').then((m) => ({ default: m.CreateQuotation })));
+const StaffQuotationDetails = lazy(() => import('../features/staff/pages/QuotationDetails').then((m) => ({ default: m.QuotationDetails })));
+const StaffSubscriptions = lazy(() => import('../features/staff/pages/Subscriptions').then((m) => ({ default: m.Subscriptions })));
+const StaffCreateSubscription = lazy(() => import('../features/staff/pages/CreateSubscription').then((m) => ({ default: m.CreateSubscription })));
+const StaffSubscriptionDetails = lazy(() => import('../features/staff/pages/SubscriptionDetails').then((m) => ({ default: m.SubscriptionDetails })));
+const StaffInvoices = lazy(() => import('../features/staff/pages/Invoices').then((m) => ({ default: m.Invoices })));
+const StaffInvoiceDetails = lazy(() => import('../features/staff/pages/InvoiceDetails').then((m) => ({ default: m.InvoiceDetails })));
+const StaffPayments = lazy(() => import('../features/staff/pages/Payments').then((m) => ({ default: m.Payments })));
+const StaffRecordPayment = lazy(() => import('../features/staff/pages/RecordPayment').then((m) => ({ default: m.RecordPayment })));
 
 // Staff Pages (Lazy loaded)
-const StaffOverview = lazy(() => import('../features/staff/StaffOverview').then((m) => ({ default: m.StaffOverview })));
-const StaffProfile = lazy(() => import('../features/staff/StaffProfile').then((m) => ({ default: m.StaffProfile })));
+
+
 
 // Customer Pages (Lazy loaded)
 const CustomerOverview = lazy(() => import('../features/customer/pages/CustomerOverview').then((m) => ({ default: m.CustomerOverview })));
@@ -36,6 +51,9 @@ const InvoiceDetails = lazy(() => import('../features/customer/pages/InvoiceDeta
 const PaymentHistory = lazy(() => import('../features/customer/pages/PaymentHistory').then((m) => ({ default: m.PaymentHistory })));
 const CustomerProfile = lazy(() => import('../features/customer/pages/CustomerProfile').then((m) => ({ default: m.CustomerProfile })));
 const AccountSettings = lazy(() => import('../features/customer/pages/AccountSettings').then((m) => ({ default: m.AccountSettings })));
+
+// Landing Page (Lazy loaded)
+const Home = lazy(() => import('../pages/Home').then((m) => ({ default: m.Home })));
 
 // UI Helpers
 import { ComingSoon } from '../components/ui/ComingSoon';
@@ -75,12 +93,13 @@ export function AppRoutes() {
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
         {/* Root Route */}
-        <Route path="/" element={<RootRedirect />} />
+        <Route path="/" element={<Home />} />
 
         {/* Public Auth Routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginForm />} />
           <Route path="/register" element={<RegisterForm />} />
+          <Route path="/signup" element={<RegisterForm />} />
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/reset-password" element={<ResetPasswordForm />} />
         </Route>
@@ -193,70 +212,28 @@ export function AppRoutes() {
         >
           <Route index element={<StaffOverview />} />
           <Route path="profile" element={<StaffProfile />} />
-          <Route
-            path="customers"
-            element={
-              <ComingSoon
-                title="Customer Directory"
-                description="Access customer accounts, assign account managers, and track customer satisfaction."
-                features={[
-                  'Searchable customer database with company details',
-                  'Subscription plan inspection and history',
-                  'Internal staff customer notes and activity logs',
-                  'Support escalation and contact records',
-                ]}
-                backPath="/staff"
-              />
-            }
-          />
-          <Route
-            path="quotations"
-            element={
-              <ComingSoon
-                title="Quotations & Proposals"
-                description="Draft custom enterprise pricing proposals and send quotations for customer signoff."
-                features={[
-                  'Custom enterprise quotation builder',
-                  'Volume discounting and one-off setup fees',
-                  'E-signature and proposal approval tracking',
-                  'One-click conversion to active subscription',
-                ]}
-                backPath="/staff"
-              />
-            }
-          />
-          <Route
-            path="subscriptions"
-            element={
-              <ComingSoon
-                title="Managed Subscriptions"
-                description="Help customers adjust subscription plans, handle renewals, and pause services."
-                features={[
-                  'Assisted customer plan upgrades and renewals',
-                  'Scheduled subscription pause and resume',
-                  'Add-on activation and license allocation',
-                  'Renewal notification alerts',
-                ]}
-                backPath="/staff"
-              />
-            }
-          />
-          <Route
-            path="invoices"
-            element={
-              <ComingSoon
-                title="Billing & Invoices"
-                description="Review customer invoice statuses, process manual payments, and send reminders."
-                features={[
-                  'Customer invoice lookup and PDF download',
-                  'Overdue payment reminder dispatch',
-                  'Manual payment recording (wire / check)',
-                  'Invoice discrepancy investigation',
-                ]}
-                backPath="/staff"
-              />
-            }
-          />
+
+          {/* Customers */}
+          <Route path="customers" element={<StaffCustomers />} />
+          <Route path="customers/:id" element={<StaffCustomerDetails />} />
+
+          {/* Quotations */}
+          <Route path="quotations" element={<StaffQuotations />} />
+          <Route path="quotations/new" element={<StaffCreateQuotation />} />
+          <Route path="quotations/:id" element={<StaffQuotationDetails />} />
+
+          {/* Subscriptions */}
+          <Route path="subscriptions" element={<StaffSubscriptions />} />
+          <Route path="subscriptions/new" element={<StaffCreateSubscription />} />
+          <Route path="subscriptions/:id" element={<StaffSubscriptionDetails />} />
+
+          {/* Invoices */}
+          <Route path="invoices" element={<StaffInvoices />} />
+          <Route path="invoices/:id" element={<StaffInvoiceDetails />} />
+
+          {/* Payments */}
+          <Route path="payments" element={<StaffPayments />} />
+          <Route path="payments/new" element={<StaffRecordPayment />} />
         </Route>
 
         {/* Customer Protected Routes */}
