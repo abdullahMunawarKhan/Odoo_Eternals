@@ -218,11 +218,13 @@ Draft -> Confirmed -> Paid
 |---|---|---|---|
 | profiles | all | read all | own row |
 | customers | all | all | own row (read) |
-| products, variants, plans, taxes, payment_terms, discounts, templates | all | read | none (customers never see cost price) |
+| products, variants, plans, taxes, payment_terms, discounts, templates (+ template lines) | all | read | none on the tables (see views below) |
 | subscriptions, lines | all | all (no direct status update) | own only, read |
 | invoices, invoice_lines | all | all (changes via functions) | own only, read |
 | payments | all | all (insert via function) | own only, read |
 | subscription_status_log | all | read | own subscriptions, read |
+
+Customers cannot select from `products`, `product_variants`, `plans`, `discounts` or the template tables directly, so `cost_price` and other admin-only columns never reach them, and table RLS is not weakened to allow it. Customers read the catalog only through three views that expose a fixed list of non-sensitive columns and only active rows: `products_public (id, name, type)`, `variants_public (id, product_id, attribute_name, value)`, `plans_public (id, name, billing_period)`. The views are owned by the migration role (not `security_invoker`), so they bypass table RLS by design; never add `cost_price`, `notes`, `sales_price`, flags or any other column to them without updating this section first.
 
 "Own" means `customer_id` belongs to a `customers` row where `user_id = auth.uid()`.
 Customer actions (pause, close, renew) go through `transition_subscription`, which checks ownership and plan flags inside the function.

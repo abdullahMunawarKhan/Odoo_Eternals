@@ -2,7 +2,7 @@
 
 Contract between the database / Edge Function and the frontend. SPEC.md is the source of truth; this file is updated at the end of every Part.
 
-Last updated: **Part 1 (Foundation)**.
+Last updated: **Part 2 (Catalog)**. Sections 1 to 4 are Part 1 (auth, profiles, customers, `create-staff`); section 5 is the Part 2 catalog.
 
 Project URL and keys: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (the publishable key). The frontend never uses the secret / service-role key.
 
@@ -105,6 +105,119 @@ Errors: always `{ "error": { "code": string, "message": string, "field"?: string
 
 CORS: `Access-Control-Allow-Origin: *`, headers `authorization, x-client-info, apikey, content-type`, methods `POST, OPTIONS`.
 
-## 5. Not built yet
+## 5. Catalog (Part 2)
 
-Catalog, subscriptions, billing, payments, dashboard views: later Parts. This file gains their tables, RLS and functions as they land.
+Money columns are `numeric(12,2)`. supabase-js returns them as numbers or strings depending on size; format for display only, never do money math in JS (the database is the source of truth). Every table has `id uuid` and `created_at`.
+
+### 5.1 Who can do what
+
+| | admin | staff | customer |
+|---|---|---|---|
+| Catalog tables (below): select | yes | yes | **no (empty result)** |
+| Catalog tables: insert / update / delete | yes | **no** | no |
+| `products_public`, `variants_public`, `plans_public` views: select | yes | yes | yes (active rows only) |
+| `effective_price` rpc | yes | yes | no (errors "Product not found") |
+| `plan_is_available` rpc | yes | yes | yes |
+
+`anon` (not logged in) can read nothing here.
+
+A denied write is not always an error: an INSERT by staff/customer fails with `42501` ("new row violates row-level security policy"), but an UPDATE or DELETE on rows they cannot touch succeeds with **zero rows affected**. Always `.select()` after update/delete and treat an empty result as "not allowed" (see 5.5).
+
+### 5.2 Tables
+
+**taxes**: `name`, `rate_type` (`percent` | `fixed`), `rate` (>= 0; percent <= 100), `is_active` (default true).
+
+**payment_terms**: `name`, `days` (>= 0).
+
+**products**: `name`, `type` (`service` | `goods` | `software`), `sales_price` (>= 0), `cost_price` (>= 0, default 0, **staff/admin only**), `notes`, `tax_id` (nullable FK taxes), `is_active`.
+
+**product_variants**: `product_id` (FK, deleted with the product), `attribute_name` (default `Brand`), `value`, `extra_price` (>= 0, default 0). Unique on (`product_id`, `attribute_name`, `value`).
+
+**plans**: `name`, `price` (>= 0, default 0), `billing_period` (`daily` | `weekly` | `monthly` | `yearly`), `min_quantity` (>= 1, default 1), `available_from` / `available_to` (dates, null = open-ended; `available_from <= available_to` when both set), `tax_id`, flags `auto_close`, `closable`, `pausable`, `renewable` (all default false), `is_active`.
+
+**discounts**: `name`, `type` (`fixed` | `percent`), `value` (> 0; percent <= 100), `applies_to` (`product` | `subscription`), `product_id` (required when `applies_to = 'product'`), `min_purchase` (>= 0, default 0), `min_quantity` (>= 0, default 0), `start_date`, `end_date` (null = open; `end_date >= start_date`), `usage_limit` (null = unlimited, else > 0), `times_used` (default 0, do not set from the client), `is_active`.
+
+**quotation_templates**: `name`, `plan_id` (FK plans), `validity_days` (> 0), `payment_term_id` (FK payment_terms), `notes`.
+
+**quotation_template_lines**: `template_id` (FK, deleted with the template), `product_id` (FK), `variant_id` (nullable; when set it must be a variant of `product_id`), `quantity` (> 0, default 1).
+
+Deleting a tax, plan, payment term or product that is still referenced fails with `23503` (foreign key); set `is_active = false` instead.
+
+### 5.3 Public views (what customers read)
+
+Fixed columns, active rows only. They never contain `cost_price`, `sales_price`, `notes`, tax, flags or dates.
+
+| View | Columns |
+|---|---|
+| `products_public` | `id`, `name`, `type` |
+| `variants_public` | `id`, `product_id`, `attribute_name`, `value` (only for active products) |
+| `plans_public` | `id`, `name`, `billing_period` |
+
+Selecting any other column from these views is an error. Staff and admin should read the real tables, not these views.
+
+### 5.4 Functions
+
+**`effective_price(p_product_id uuid, p_variant_id uuid default null) returns numeric`**: `products.sales_price + product_variants.extra_price` (extra is 0 with no variant). Staff and admin only.
+Errors: `Product not found` (`P0002`; also what a customer gets); `Variant does not belong to this product` (`22023`).
+
+**`plan_is_available(p_plan_id uuid, p_on_date date default current_date) returns boolean`**: true when the plan is active and `available_from <= date <= available_to` (null bounds are open-ended, both ends inclusive). Unknown or inactive plans return false (no error). Callable by every signed-in role.
+
+### 5.5 supabase-js examples
+
+```js
+// Read (staff/admin): products with their variants and tax
+const { data, error } = await supabase
+  .from('products')
+  .select('id, name, type, sales_price, cost_price, is_active, tax:taxes(name, rate_type, rate), variants:product_variants(id, attribute_name, value, extra_price)')
+  .order('name')
+  .range(0, 24) // paginate every list (25 per page)
+
+// Read (customer): public views only
+const { data: prods } = await supabase.from('products_public').select('id, name, type')
+const { data: variants } = await supabase.from('variants_public').select('*').eq('product_id', productId)
+const { data: plans } = await supabase.from('plans_public').select('*')
+
+// Create (admin)
+const { data: product, error: e1 } = await supabase
+  .from('products')
+  .insert({ name: 'ERP Suite', type: 'software', sales_price: 4999, cost_price: 3200, tax_id })
+  .select()
+  .single()
+
+const { error: e2 } = await supabase
+  .from('product_variants')
+  .insert({ product_id: product.id, value: 'Odoo', extra_price: 560 }) // attribute_name defaults to 'Brand'
+
+// Update (admin). Check that a row came back.
+const { data: updated, error: e3 } = await supabase
+  .from('plans').update({ pausable: true }).eq('id', planId).select()
+if (!e3 && updated.length === 0) { /* not allowed (staff/customer) or id not found */ }
+
+// Effective price (staff/admin): Odoo variant gives sales_price + 560
+const { data: price, error: e4 } = await supabase
+  .rpc('effective_price', { p_product_id: productId, p_variant_id: variantId })
+
+// Plan availability (any signed-in role); date is optional, defaults to today
+const { data: ok } = await supabase.rpc('plan_is_available', { p_plan_id: planId, p_on_date: '2026-12-01' })
+```
+
+### 5.6 Error cases
+
+Supabase returns `error.code` (Postgres SQLSTATE) and `error.message`. Show a friendly message per code:
+
+| `error.code` | Cause |
+|---|---|
+| `42501` | not allowed by RLS (staff/customer insert) |
+| `23514` | a CHECK failed: negative price, `min_quantity < 1`, `available_from > available_to`, discount `value <= 0`, percent discount over 100, product discount without `product_id`, `end_date < start_date`, `usage_limit <= 0`, `validity_days <= 0`, line `quantity <= 0`. `error.message` names the constraint, for example `discounts_percent_max` |
+| `23505` | unique violation: duplicate variant (same product, attribute and value) |
+| `23503` | foreign key: variant not belonging to the line's product, or deleting something still in use |
+| `P0002` | `effective_price`: product not found (or hidden from the caller) |
+| `22023` | `effective_price`: variant does not belong to the product |
+
+### 5.7 Seed data
+
+`supabase/seed/catalog.sql` (idempotent) loads: taxes GST 18%, GST 5%, No tax; payment terms Immediate, Net 15, Net 30; products ERP Suite (variants Odoo +560, Zoho +300), CRM Cloud (HubSpot +400, Salesforce +900), Consulting Hours, Office Router, Training Pack; plans Monthly Basic, Yearly Pro, Weekly Trial, Daily Test (flags mixed); discounts "Launch 10% off ERP Suite", "Flat 500 off", "Early Bird 15% (expired)"; templates "Starter Monthly Bundle" and "ERP Yearly Package" with lines. Run: `npx supabase db query --linked -f supabase/seed/catalog.sql`.
+
+## 6. Not built yet
+
+Subscriptions, billing, payments, dashboard views: later Parts. This file gains their tables, RLS and functions as they land.
