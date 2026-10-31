@@ -31,6 +31,9 @@ const StaffProfile = lazy(() => import('../features/staff/StaffProfile').then((m
 const CustomerOverview = lazy(() => import('../features/customer/CustomerOverview').then((m) => ({ default: m.CustomerOverview })));
 const CustomerSettings = lazy(() => import('../features/customer/CustomerSettings').then((m) => ({ default: m.CustomerSettings })));
 
+// Landing Page (Lazy loaded)
+const Home = lazy(() => import('../pages/Home').then((m) => ({ default: m.Home })));
+
 // UI Helpers
 import { ComingSoon } from '../components/ui/ComingSoon';
 
@@ -69,12 +72,13 @@ export function AppRoutes() {
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
         {/* Root Route */}
-        <Route path="/" element={<RootRedirect />} />
+        <Route path="/" element={<Home />} />
 
         {/* Public Auth Routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginForm />} />
           <Route path="/register" element={<RegisterForm />} />
+          <Route path="/signup" element={<RegisterForm />} />
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/reset-password" element={<ResetPasswordForm />} />
         </Route>
