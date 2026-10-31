@@ -133,7 +133,7 @@ async function main() {
     assert(b.error && b.error.code === '42501', `admin direct role: ${b.error?.code}`)
     const c = await cust.client.from('profiles').update({ is_active: false }).eq('id', cust.id)
     assert(c.error && c.error.code === '42501', `customer direct is_active: ${c.error?.code}`)
-    const d = await staff.client.from('profiles').update({ is_active: true }).eq('id', staff.id)
+    const d = await staff.client.from('profiles').update({ is_active: false }).eq('id', staff.id)
     assert(d.error && d.error.code === '42501', `staff direct is_active: ${d.error?.code}`)
     const { data } = await service.from('profiles').select('role, is_active').eq('id', staff.id).single()
     assert(data.role === 'staff' && data.is_active === true, 'staff row changed')

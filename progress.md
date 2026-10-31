@@ -19,7 +19,7 @@ Work goes on the `sarthak` branch only.
 ### Admin extras (backend)
 - Migration `20261031130000_admin_extras.sql`: deactivated users have no access (including own-row access), `is_active_user()`, clients cannot change `profiles.is_active` or `role` directly, admin-only `set_user_active(user_id, active)` (cannot deactivate self).
 - Tests: `scripts/tests/admin-extras.mjs`.
-- STATUS: written, **migration not yet applied to the hosted project** and tests not yet run (push was blocked; see below).
+- STATUS: applied to the hosted project; `admin-extras.mjs` all passing, Part 2 suite still all passing. Part 1 suite passes except the `invite-staff` success-path test (known: rate limit and the function's own bugs).
 
 ## Open items
 - Dashboard (manual): Auth minimum password length 9; add `http://localhost:5173/reset-password` to Redirect URLs.
