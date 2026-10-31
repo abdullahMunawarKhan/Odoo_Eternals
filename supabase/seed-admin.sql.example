@@ -1,0 +1,11 @@
+-- Promote an existing user to admin (SPEC 1: the first admin is set manually).
+-- NOT run automatically. Sign up through the app first, then run this in the
+-- Supabase dashboard SQL editor (it runs as postgres, so the role guard allows it).
+-- Replace the email.
+
+update public.profiles
+   set role = 'admin'
+ where email = 'admin@example.com';
+
+-- Check:
+-- select id, email, role from public.profiles where role = 'admin';
