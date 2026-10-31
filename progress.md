@@ -26,10 +26,18 @@ Work goes on the `sarthak` branch only.
 - Tests: `scripts/tests/part3.mjs`; `part2.mjs` updated for the new `plans_public` columns.
 - STATUS: applied to the hosted project; `part3.mjs` 16/16 passing; Part 1 (except the invite-staff success path), Part 2 and admin-extras suites still passing.
 
+### Part 4: Billing, payments, dashboard views (backend)
+- Migration `20261031150000_billing.sql`: `invoices`, `invoice_lines`, `payments` (select-only for clients), `generate_invoice`, `run_billing`, `invoice_confirm/cancel/send`, `record_payment`, views `v_invoice_summary`, `v_overdue_invoices`, `v_dashboard_summary`. Product-level discounts only.
+- Tests: `scripts/tests/part4.mjs` (7 passing). Demo data: `supabase/seed/demo.sql` (idempotent, `DEMO-` customers).
+
+### Admin UI (frontend, `sarthak` branch)
+- Catalog (products + variants, plans + flags, taxes, payment terms, discounts, templates), staff (create, deactivate), subscriptions (create from template, status buttons, discounts, history), invoices (run billing, confirm, send, cancel, print, record payment), payments (outstanding, overdue), live dashboard. Same screens under `/staff`.
+- Build passes; queries checked against live data; forms and buttons not yet clicked through in a browser.
+
 ## Open items
 - Dashboard (manual): Auth minimum password length 9; add `http://localhost:5173/reset-password` to Redirect URLs.
 - `invite-staff` (frontend teammate's function, deployed but not in this repo) is broken against the current schema (`profiles.updated_at` no longer exists, does not remove the signup trigger's customers row). Prefer `create-staff`. Details in `docs/API.md` section 4.1.
 - Supabase's built-in email rate limit blocks repeated auth email tests (invite success path unverified).
 
 ## Not started
-- Part 4 Billing, Part 5 Payments, Part 6 Dashboard / portal / full seed.
+- Subscription-level discounts at invoice time, pg_cron, customer portal fixes (see `docs/GAPS.md` P0-5, P0-9), merge of `sarthak` into `main` (revert `46e2e93` first).
