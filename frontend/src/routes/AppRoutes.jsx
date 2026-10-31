@@ -28,8 +28,14 @@ const StaffOverview = lazy(() => import('../features/staff/StaffOverview').then(
 const StaffProfile = lazy(() => import('../features/staff/StaffProfile').then((m) => ({ default: m.StaffProfile })));
 
 // Customer Pages (Lazy loaded)
-const CustomerOverview = lazy(() => import('../features/customer/CustomerOverview').then((m) => ({ default: m.CustomerOverview })));
-const CustomerSettings = lazy(() => import('../features/customer/CustomerSettings').then((m) => ({ default: m.CustomerSettings })));
+const CustomerOverview = lazy(() => import('../features/customer/pages/CustomerOverview').then((m) => ({ default: m.CustomerOverview })));
+const MySubscriptions = lazy(() => import('../features/customer/pages/MySubscriptions').then((m) => ({ default: m.MySubscriptions })));
+const SubscriptionDetails = lazy(() => import('../features/customer/pages/SubscriptionDetails').then((m) => ({ default: m.SubscriptionDetails })));
+const MyInvoices = lazy(() => import('../features/customer/pages/MyInvoices').then((m) => ({ default: m.MyInvoices })));
+const InvoiceDetails = lazy(() => import('../features/customer/pages/InvoiceDetails').then((m) => ({ default: m.InvoiceDetails })));
+const PaymentHistory = lazy(() => import('../features/customer/pages/PaymentHistory').then((m) => ({ default: m.PaymentHistory })));
+const CustomerProfile = lazy(() => import('../features/customer/pages/CustomerProfile').then((m) => ({ default: m.CustomerProfile })));
+const AccountSettings = lazy(() => import('../features/customer/pages/AccountSettings').then((m) => ({ default: m.AccountSettings })));
 
 // UI Helpers
 import { ComingSoon } from '../components/ui/ComingSoon';
@@ -265,56 +271,19 @@ export function AppRoutes() {
           }
         >
           <Route index element={<CustomerOverview />} />
-          <Route path="settings" element={<CustomerSettings />} />
-          <Route
-            path="subscriptions"
-            element={
-              <ComingSoon
-                title="My Subscriptions"
-                description="Review your active subscription plan, manage licenses, or explore plan upgrades."
-                features={[
-                  'Current plan benefits and limits overview',
-                  'Switch between monthly and annual billing',
-                  'Self-service plan tier upgrades',
-                  'Add-on feature activation',
-                ]}
-                backPath="/customer"
-              />
-            }
-          />
-          <Route
-            path="invoices"
-            element={
-              <ComingSoon
-                title="My Invoices"
-                description="Access and download your complete invoice history with itemized breakdowns."
-                features={[
-                  'Download tax-compliant PDF invoices',
-                  'Itemized charges and tax breakdown',
-                  'Payment receipts and transaction timestamps',
-                  'Filter invoices by date range and status',
-                ]}
-                backPath="/customer"
-              />
-            }
-          />
-          <Route
-            path="payments"
-            element={
-              <ComingSoon
-                title="Payment History"
-                description="Manage your credit cards, review payment attempts, and update billing contacts."
-                features={[
-                  'Secure payment method storage',
-                  'Automatic retry on failed charges',
-                  'Billing contact email notifications',
-                  'Default payment method selection',
-                ]}
-                backPath="/customer"
-              />
-            }
-          />
+          <Route path="overview" element={<Navigate to="/customer" replace />} />
+          <Route path="subscriptions" element={<MySubscriptions />} />
+          <Route path="subscriptions/:id" element={<SubscriptionDetails />} />
+          <Route path="invoices" element={<MyInvoices />} />
+          <Route path="invoices/:id" element={<InvoiceDetails />} />
+          <Route path="payments" element={<PaymentHistory />} />
+          <Route path="profile" element={<CustomerProfile />} />
+          <Route path="settings" element={<AccountSettings />} />
         </Route>
+
+        {/* Support /portal redirect aliases */}
+        <Route path="/portal" element={<Navigate to="/customer" replace />} />
+        <Route path="/portal/*" element={<Navigate to="/customer" replace />} />
 
         {/* 404 Catch-All */}
         <Route
