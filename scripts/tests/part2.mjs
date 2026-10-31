@@ -212,7 +212,7 @@ async function main() {
     const expected = {
       products_public: ['id', 'name', 'type'],
       variants_public: ['id', 'product_id', 'attribute_name', 'value'],
-      plans_public: ['id', 'name', 'billing_period'],
+      plans_public: ['id', 'name', 'billing_period', 'price', 'min_quantity', 'closable', 'pausable', 'renewable', 'auto_close'],
     }
     for (const [view, cols] of Object.entries(expected)) {
       const { data, error } = await customer.from(view).select('*').limit(1)

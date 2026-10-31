@@ -2,7 +2,7 @@
 
 Contract between the database / Edge Function and the frontend. SPEC.md is the source of truth; this file is updated at the end of every Part.
 
-Last updated: **Part 2 (Catalog)**. Sections 1 to 4 are Part 1 (auth, profiles, customers, `create-staff`); section 5 is the Part 2 catalog.
+Last updated: **Part 3 (Subscriptions)**; section 6 is new, `plans_public` gained columns in 5.3. Sections 1 to 4 are Part 1 (auth, profiles, customers, `create-staff`); section 5 is the Part 2 catalog.
 
 Project URL and keys: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (the publishable key). The frontend never uses the secret / service-role key.
 
@@ -187,13 +187,13 @@ Deleting a tax, plan, payment term or product that is still referenced fails wit
 
 ### 5.3 Public views (what customers read)
 
-Fixed columns, active rows only. They never contain `cost_price`, `sales_price`, `notes`, tax, flags or dates.
+Fixed columns, active rows only. They never contain `cost_price`, `sales_price`, `notes`, tax or dates (`plans_public` additionally shows the non-secret plan price, minimum quantity and action flags).
 
 | View | Columns |
 |---|---|
 | `products_public` | `id`, `name`, `type` |
 | `variants_public` | `id`, `product_id`, `attribute_name`, `value` (only for active products) |
-| `plans_public` | `id`, `name`, `billing_period` |
+| `plans_public` | `id`, `name`, `billing_period`, `price`, `min_quantity`, `closable`, `pausable`, `renewable`, `auto_close` (added in Part 3 so customers can show the right buttons) |
 
 Selecting any other column from these views is an error. Staff and admin should read the real tables, not these views.
 
@@ -260,6 +260,83 @@ Supabase returns `error.code` (Postgres SQLSTATE) and `error.message`. Show a fr
 
 `supabase/seed/catalog.sql` (idempotent) loads: taxes GST 18%, GST 5%, No tax; payment terms Immediate, Net 15, Net 30; products ERP Suite (variants Odoo +560, Zoho +300), CRM Cloud (HubSpot +400, Salesforce +900), Consulting Hours, Office Router, Training Pack; plans Monthly Basic, Yearly Pro, Weekly Trial, Daily Test (flags mixed); discounts "Launch 10% off ERP Suite", "Flat 500 off", "Early Bird 15% (expired)"; templates "Starter Monthly Bundle" and "ERP Yearly Package" with lines. Run: `npx supabase db query --linked -f supabase/seed/catalog.sql`.
 
-## 6. Not built yet
+## 6. Subscriptions (Part 3)
 
-Subscriptions, billing, payments, dashboard views: later Parts. This file gains their tables, RLS and functions as they land.
+### 6.1 Tables
+
+| Table | Columns | admin / staff | customer |
+|---|---|---|---|
+| `subscriptions` | `id`, `number` (`SUB-00001`), `customer_id`, `plan_id`, `template_id`, `status`, `start_date`, `expiry_date`, `next_billing_date`, `payment_term_id`, `quotation_valid_until`, `created_by`, `notes` | select, insert, update, delete (never `status`, `number`, `created_by`, `next_billing_date`) | select own |
+| `subscription_lines` | `id`, `subscription_id`, `product_id`, `variant_id`, `quantity`, `unit_price`, `tax_id`, `amount` | select, insert, update, delete (only while subscription is `draft`/`quotation`) | select own |
+| `subscription_discounts` | `subscription_id`, `discount_id` | select, delete; attach only via `attach_discount` | none |
+| `subscription_status_log` | `id`, `subscription_id`, `from_status`, `to_status`, `changed_by`, `changed_at` | select | select own |
+
+`status` is one of `draft`, `quotation`, `confirmed`, `active`, `paused`, `closed`. "Own" = the subscription's customer is the signed-in user; deactivated users see nothing. A client-created subscription always starts as `draft`, `expiry_date` defaults to `start_date` + 1 year, and `unit_price`, `tax_id` and `amount` on a line are always computed by the database (values you send are ignored). Direct `update ... status` fails with `42501` for every role.
+
+### 6.2 Functions
+
+| Signature | Who | Returns |
+|---|---|---|
+| `create_subscription_from_template(p_template_id uuid, p_customer_id uuid, p_start_date date default current_date)` | admin, staff | the new `subscriptions` row (draft) with lines copied at current effective prices |
+| `transition_subscription(sub_id uuid, new_status sub_status)` | see table below | the updated `subscriptions` row; writes a log row |
+| `attach_discount(p_subscription_id uuid, p_discount_id uuid)` | admin, staff | the `subscription_discounts` row |
+
+### 6.3 Transitions
+
+| From -> To | Who | Conditions |
+|---|---|---|
+| `draft` -> `quotation` | admin, staff | at least one line; sets `quotation_valid_until` = today + template `validity_days` (30 without a template) |
+| `quotation` -> `confirmed` | admin, staff | quotation not expired |
+| `confirmed` -> `active` | admin, staff | sets `next_billing_date` = `start_date` |
+| `active` -> `paused`, `paused` -> `active` | admin, staff, owning customer | `plan.pausable` (everyone) |
+| `active`/`paused` -> `closed` | admin, staff, owning customer | owning customer needs `plan.closable`; admin and staff can always close |
+| `active` -> `active` (renew) | admin, staff, owning customer | `plan.renewable`; extends `expiry_date` by the current term (`expiry_date - start_date`) |
+
+Anything else is rejected with `Invalid transition from X to Y`. Customers use the flags from `plans_public` (`pausable`, `closable`, `renewable`) to show or hide buttons.
+
+### 6.4 Errors (`error.code`: `error.message`)
+
+| Code | Message |
+|---|---|
+| `42501` | `Only staff or admin can ...` (customer on a staff step, or any non-staff on create/attach) |
+| `42501` | `Status can only be changed with transition_subscription()` (direct update; also `A new subscription must start as draft`) |
+| `42501` | `This plan does not allow pausing` / `...early closing` / `...renewal` |
+| `22023` | `Invalid transition from draft to active` |
+| `22023` | `Add at least one line before sending a quotation` |
+| `22023` | `Quotation has expired` |
+| `22023` | `Plan "Name" is not available today` |
+| `22023` | `Quantity 1 is below the minimum of 2 for plan "Name"` |
+| `22023` | `Lines can only be changed while the subscription is a draft or quotation` |
+| `22023` | `Only subscription-level discounts can be attached` / `Discount is not active` / `Cannot attach discounts to a closed subscription` |
+| `23505` | `Discount is already attached to this subscription` |
+| `P0002` | `Subscription not found` (also what a customer gets for someone else's), `Template not found`, `Customer not found`, `Discount not found` |
+
+### 6.5 supabase-js examples
+
+```js
+// 1. Staff: create from a template, then move it forward
+const { data: sub, error } = await supabase.rpc('create_subscription_from_template', {
+  p_template_id: templateId, p_customer_id: customerId, p_start_date: '2026-11-01',
+})
+const { data: quoted, error: e2 } = await supabase.rpc('transition_subscription', { sub_id: sub.id, new_status: 'quotation' })
+
+// 2. Customer: list own subscriptions with plan flags (plans_public), then pause one
+const { data: mine } = await supabase
+  .from('subscriptions')
+  .select('id, number, status, expiry_date, plan_id')
+  .order('created_at', { ascending: false })
+  .range(0, 24)
+const { data: plans } = await supabase.from('plans_public').select('*').in('id', mine.map((s) => s.plan_id))
+const { error: e3 } = await supabase.rpc('transition_subscription', { sub_id: mine[0].id, new_status: 'paused' })
+
+// 3. Staff: subscription detail with lines, log and attach a discount
+const { data: detail } = await supabase
+  .from('subscriptions')
+  .select('*, lines:subscription_lines(*), log:subscription_status_log(*)')
+  .eq('id', subId).single()
+const { error: e4 } = await supabase.rpc('attach_discount', { p_subscription_id: subId, p_discount_id: discountId })
+```
+
+## 7. Not built yet
+
+Billing, payments, dashboard views: later Parts.

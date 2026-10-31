@@ -21,6 +21,11 @@ Work goes on the `sarthak` branch only.
 - Tests: `scripts/tests/admin-extras.mjs`.
 - STATUS: applied to the hosted project; `admin-extras.mjs` all passing, Part 2 suite still all passing. Part 1 suite passes except the `invite-staff` success-path test (known: rate limit and the function's own bugs).
 
+### Part 3: Subscriptions (backend)
+- Migrations `20261031140000` (plans_public extended), `…140100` (subscriptions, lines, discounts, status log, guards, RLS via `my_customer_id()`), `…140200` (`create_subscription_from_template`, `transition_subscription`, `attach_discount`).
+- Tests: `scripts/tests/part3.mjs`; `part2.mjs` updated for the new `plans_public` columns.
+- STATUS: applied to the hosted project; `part3.mjs` 16/16 passing; Part 1 (except the invite-staff success path), Part 2 and admin-extras suites still passing.
+
 ## Open items
 - Dashboard (manual): Auth minimum password length 9; add `http://localhost:5173/reset-password` to Redirect URLs.
 - `invite-staff` (frontend teammate's function, deployed but not in this repo) is broken against the current schema (`profiles.updated_at` no longer exists, does not remove the signup trigger's customers row). Prefer `create-staff`. Details in `docs/API.md` section 4.1.
