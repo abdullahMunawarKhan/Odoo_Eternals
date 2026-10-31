@@ -105,10 +105,10 @@ async function main() {
       password: PASSWORD,
       options: { data: { full_name: 'Signup Test', role: 'admin' } },
     })
-    if (error && /invalid/i.test(error.message)) {
+    if (error && /invalid|rate limit/i.test(error.message)) {
       const r = await makeUser('signup', 'customer', { role: 'admin' })
       signupUserId = r.id
-      note = 'public signUp rejected example.com; used admin API'
+      note = 'public signUp unavailable (example.com rejected or email rate limit); used admin API'
     } else {
       assert(!error, `signUp failed: ${error?.message}`)
       signupUserId = data.user.id

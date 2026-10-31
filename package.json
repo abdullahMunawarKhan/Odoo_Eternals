@@ -1,29 +1,13 @@
 {
-  "name": "subscription-management-system",
+  "name": "brightloop-backend-tools",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "description": "Backend tooling only (Supabase tests). The app lives in frontend/.",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.118.0",
-    "@tanstack/react-query": "^5.105.0",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.5",
-    "recharts": "^3.10.1"
+    "test:part1": "node scripts/tests/part1.mjs"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.3",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.2",
-    "oxlint": "^1.89.0",
-    "tailwindcss": "^4.3.3",
-    "vite": "^8.3.5"
+    "@supabase/supabase-js": "^2.118.0"
   }
 }

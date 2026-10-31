@@ -10,3 +10,7 @@ Rules (from SPEC.md section 0):
 - Schema changes only as numbered SQL files in supabase/migrations.
 - Paginate every list. Target under 2 seconds.
 - Do one Part at a time. Stop after each Part and report "Done when" results.
+
+Repo layout:
+- `frontend/` is the React app (owned by the frontend teammate). It must follow `docs/API.md`.
+- Backend (`supabase/`, `scripts/tests/`, `docs/`) is the source of truth for schema and behaviour. Update `docs/API.md` at the end of every Part.

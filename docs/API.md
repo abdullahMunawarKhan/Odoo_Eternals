@@ -11,7 +11,7 @@ Project URL and keys: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (the publish
 - At least 9 characters (more than 8), at least one lowercase letter, one uppercase letter, one special (non-alphanumeric) character. No digit is required.
 - Regex: `^(?=.*[a-z])(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{9,}$`
 - Message: `Password must be at least 9 characters and include an uppercase letter, a lowercase letter and a special character.`
-- Client: `src/lib/passwordRule.js` (`PASSWORD_REGEX`, `validatePassword(pw)`). Server: `create-staff` re-validates the same regex. Supabase Auth minimum length is 9 (set in `supabase/config.toml` and must also be set in Dashboard > Authentication > Sign In / Providers > Email; Supabase's own "required characters" option stays off).
+- Client: implement the same regex in the frontend (for example `frontend/src/utils/validators.js`). Server: `create-staff` re-validates the same regex. Supabase Auth minimum length is 9 (set in `supabase/config.toml` and must also be set in Dashboard > Authentication > Sign In / Providers > Email; Supabase's own "required characters" option stays off).
 
 ## 2. Auth flow
 
