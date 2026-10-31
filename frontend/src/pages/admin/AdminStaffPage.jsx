@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import { StaffList } from '../../features/admin/staff/StaffList';
 import { InviteStaffModal } from '../../features/admin/staff/InviteStaffModal';
@@ -8,6 +10,20 @@ export function AdminStaffPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const { user } = useAuth();
+
+  const handleToggleActive = async (member) => {
+    const activate = member.is_active === false;
+    const verb = activate ? 'reactivate' : 'deactivate';
+    if (!window.confirm(`Do you want to ${verb} ${member.full_name || member.email}?`)) return;
+    try {
+      await staffService.setActive(member.id, activate);
+      toast.success(`Account ${activate ? 'reactivated' : 'deactivated'}`);
+      fetchStaff();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
 
   const fetchStaff = async (showLoading = false) => {
     if (showLoading) setIsLoading(true);
@@ -65,6 +81,8 @@ export function AdminStaffPage() {
         error={error}
         onRefresh={fetchStaff}
         onOpenInvite={() => setIsInviteOpen(true)}
+        onToggleActive={handleToggleActive}
+        currentUserId={user?.id}
       />
 
       {/* Staff Invitation Modal */}

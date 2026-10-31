@@ -15,16 +15,6 @@ export const customerService = {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (!data && !error) {
-      // Fallback check with profile_id if present
-      const fallback = await supabase
-        .from('customers')
-        .select('*')
-        .eq('profile_id', user.id)
-        .maybeSingle();
-      if (fallback.data) data = fallback.data;
-    }
-
     return data;
   },
 
@@ -355,7 +345,6 @@ export const customerService = {
     if (company !== undefined) {
       updatePayload.company = company?.trim() || null;
       // also set company_name if column exists
-      updatePayload.company_name = company?.trim() || null;
     }
 
     const { data, error } = await supabase

@@ -13,6 +13,8 @@ export function StaffList({
   error = null,
   onRefresh,
   onOpenInvite,
+  onToggleActive,
+  currentUserId,
 }) {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -58,7 +60,7 @@ export function StaffList({
             onClick={onOpenInvite}
             leftIcon={<UserPlus className="w-3.5 h-3.5" />}
           >
-            Invite Staff
+            Add Staff
           </Button>
         </div>
       </div>
@@ -123,6 +125,7 @@ export function StaffList({
               <TableHead>Role</TableHead>
               <TableHead>Account Status</TableHead>
               <TableHead>Date Added</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -170,16 +173,38 @@ export function StaffList({
                   </TableCell>
 
                   <TableCell>
-                    <Badge variant="success" className="gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Active
-                    </Badge>
+                    {staff.is_active === false ? (
+                      <Badge variant="default" className="gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        Deactivated
+                      </Badge>
+                    ) : (
+                      <Badge variant="success" className="gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Active
+                      </Badge>
+                    )}
                   </TableCell>
 
                   <TableCell>
                     <span className="text-xs text-slate-500">
                       {formatDate(staff.created_at)}
                     </span>
+                  </TableCell>
+
+                  <TableCell className="text-right">
+                    {staff.id === currentUserId ? (
+                      <span className="text-xs text-slate-400">You</span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={staff.is_active === false ? '' : 'text-rose-600 hover:bg-rose-50'}
+                        onClick={() => onToggleActive?.(staff)}
+                      >
+                        {staff.is_active === false ? 'Reactivate' : 'Deactivate'}
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               );

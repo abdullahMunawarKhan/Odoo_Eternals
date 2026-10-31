@@ -11,7 +11,7 @@ export const staffService = {
   async getStaffList() {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, role, created_at, updated_at')
+      .select('id, full_name, email, role, is_active, created_at')
       .in('role', ['staff', 'admin'])
       .order('created_at', { ascending: false });
 
@@ -23,41 +23,42 @@ export const staffService = {
   },
 
   /**
-   * Invite a new staff member via Supabase Edge Function (used by Admin)
+   * Create a staff account with the admin-only `create-staff` Edge Function
+   * (docs/API.md section 4). The staff member can log in right away.
+   * Errors come back as { error: { code, message, field } }.
    */
-  async inviteStaff({ email, fullName }) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      throw new Error('You must be signed in as an admin to invite staff.');
-    }
-
-    const redirectTo = `${window.location.origin}/reset-password`;
-
-    const { data, error } = await supabase.functions.invoke('invite-staff', {
+  async createStaff({ email, fullName, password }) {
+    const { data, error } = await supabase.functions.invoke('create-staff', {
       body: {
         email: email.trim().toLowerCase(),
         full_name: fullName.trim(),
-        redirectTo,
+        password,
       },
     });
 
     if (error) {
-      let errorMsg = error.message;
+      let message = error.message;
       try {
         if (error.context && typeof error.context.json === 'function') {
           const body = await error.context.json();
-          if (body?.error) errorMsg = body.error;
+          if (body?.error?.message) message = body.error.message;
         }
       } catch {
-        // Fallback
+        // keep the default message
       }
-      throw new Error(errorMsg || 'Failed to send staff invitation');
+      throw new Error(message || 'Failed to create the staff account');
     }
 
-    if (data?.error) {
-      throw new Error(data.error);
-    }
+    return data;
+  },
 
+  /**
+   * Activate or deactivate an account (admin only). A deactivated user can still sign
+   * in but sees no data. Returns the updated profile row.
+   */
+  async setActive(userId, active) {
+    const { data, error } = await supabase.rpc('set_user_active', { user_id: userId, active });
+    if (error) throw new Error(error.message);
     return data;
   },
 
@@ -477,60 +478,46 @@ export const staffService = {
    * Create a quotation (as subscription with status = 'quotation' or 'draft')
    */
   async createQuotation({ customer_id, plan_id, validity_days = 30, payment_term_id = null, notes = '', lines = [], status = 'quotation' }) {
-    const validUntil = new Date();
-    validUntil.setDate(validUntil.getDate() + Number(validity_days));
-    const validUntilStr = validUntil.toISOString().split('T')[0];
-
-    // 1. Insert header
+    // The database owns status, prices and the log: create a draft, add lines (unit_price,
+    // tax and amount are computed server-side), then move it with transition_subscription.
     const { data: sub, error: subErr } = await supabase
       .from('subscriptions')
       .insert({
         customer_id,
         plan_id,
-        status,
-        quotation_valid_until: validUntilStr,
         payment_term_id: payment_term_id || null,
         notes: notes || null,
         start_date: new Date().toISOString().split('T')[0],
       })
       .select()
       .single();
-
     if (subErr) {
       console.error('Error creating quotation header:', subErr);
       throw subErr;
     }
 
-    // 2. Insert lines if any
     if (lines.length > 0) {
       const lineRows = lines.map((line) => ({
         subscription_id: sub.id,
         product_id: line.product_id,
         variant_id: line.variant_id || null,
         quantity: Number(line.quantity || 1),
-        unit_price: Number(line.unit_price || 0),
-        tax_id: line.tax_id || null,
-        amount: Number(line.quantity || 1) * Number(line.unit_price || 0),
       }));
-
-      const { error: linesErr } = await supabase
-        .from('subscription_lines')
-        .insert(lineRows);
-
+      const { error: linesErr } = await supabase.from('subscription_lines').insert(lineRows);
       if (linesErr) {
         console.error('Error inserting quotation lines:', linesErr);
         throw linesErr;
       }
     }
 
-    // 3. Log initial status
-    await supabase.from('subscription_status_log').insert({
-      subscription_id: sub.id,
-      from_status: 'draft',
-      to_status: status,
-    });
+    if (status === 'draft') return sub;
 
-    return sub;
+    const moved = await this.transitionSubscription(sub.id, 'quotation');
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + Number(validity_days));
+    const validUntilStr = validUntil.toISOString().split('T')[0];
+    await supabase.from('subscriptions').update({ quotation_valid_until: validUntilStr }).eq('id', sub.id);
+    return { ...moved, quotation_valid_until: validUntilStr };
   },
 
   /**
@@ -661,54 +648,37 @@ export const staffService = {
       return d.toISOString().split('T')[0];
     })();
 
-    // 1. Insert header
     const { data: sub, error: subErr } = await supabase
       .from('subscriptions')
       .insert({
         customer_id,
         plan_id,
-        status: 'confirmed',
         start_date: sDate,
         expiry_date: eDate,
-        next_billing_date: sDate,
         payment_term_id: payment_term_id || null,
         notes: notes || null,
       })
       .select()
       .single();
-
     if (subErr) {
       console.error('Error creating subscription:', subErr);
       throw subErr;
     }
 
-    // 2. Insert lines
     if (lines.length > 0) {
       const lineRows = lines.map((l) => ({
         subscription_id: sub.id,
         product_id: l.product_id,
         variant_id: l.variant_id || null,
         quantity: Number(l.quantity || 1),
-        unit_price: Number(l.unit_price || 0),
-        tax_id: l.tax_id || null,
-        amount: Number(l.quantity || 1) * Number(l.unit_price || 0),
       }));
-
-      const { error: linesErr } = await supabase
-        .from('subscription_lines')
-        .insert(lineRows);
-
+      const { error: linesErr } = await supabase.from('subscription_lines').insert(lineRows);
       if (linesErr) throw linesErr;
     }
 
-    // 3. Log initial status
-    await supabase.from('subscription_status_log').insert({
-      subscription_id: sub.id,
-      from_status: 'draft',
-      to_status: 'confirmed',
-    });
-
-    return sub;
+    // draft -> quotation -> confirmed, each step validated and logged by the database
+    await this.transitionSubscription(sub.id, 'quotation');
+    return this.transitionSubscription(sub.id, 'confirmed');
   },
 
   /**
@@ -734,9 +704,9 @@ export const staffService = {
   async generateInvoiceForSubscription(subId, periodStart = null) {
     const pStart = periodStart || new Date().toISOString().split('T')[0];
 
-    const { data, error } = await supabase.rpc('generate_invoice_for_subscription', {
-      p_subscription_id: subId,
-      p_period_start: pStart,
+    const { data, error } = await supabase.rpc('generate_invoice', {
+      sub_id: subId,
+      period_start: pStart,
     });
 
     if (error) {
@@ -826,18 +796,15 @@ export const staffService = {
    * Update invoice status (confirm draft, or cancel)
    */
   async updateInvoiceStatus(id, newStatus) {
-    const { data, error } = await supabase
-      .from('invoices')
-      .update({ status: newStatus })
-      .eq('id', id)
-      .select()
-      .single();
-
+    // Invoices cannot be updated directly; confirm and cancel are functions. "paid" is set
+    // automatically when a payment covers the total.
+    const fn = { confirmed: 'invoice_confirm', cancelled: 'invoice_cancel' }[newStatus];
+    if (!fn) throw new Error(`An invoice cannot be set to "${newStatus}" directly.`);
+    const { data, error } = await supabase.rpc(fn, { invoice_id: id });
     if (error) {
       console.error('Error updating invoice status:', error);
-      throw error;
+      throw new Error(error.message);
     }
-
     return data;
   },
 
@@ -912,13 +879,13 @@ export const staffService = {
    * Record a payment against an invoice
    */
   async recordPayment({ invoice_id, method, amount, payment_date, note, reference }) {
+    const fullNote = [reference ? `Ref: ${reference}` : null, note || null].filter(Boolean).join(' | ') || null;
     const { data, error } = await supabase.rpc('record_payment', {
-      p_invoice_id: invoice_id,
-      p_method: method,
-      p_amount: Number(amount),
-      p_payment_date: payment_date || new Date().toISOString().split('T')[0],
-      p_note: note || null,
-      p_reference: reference || null,
+      invoice_id,
+      method,
+      amount: String(amount).trim(), // string so no float touches the amount
+      payment_date: payment_date || new Date().toISOString().split('T')[0],
+      note: fullNote,
     });
 
     if (error) {
@@ -986,7 +953,6 @@ export const staffService = {
       .from('profiles')
       .update({
         full_name: full_name.trim(),
-        updated_at: new Date().toISOString(),
       })
       .eq('id', user.id)
       .select()
