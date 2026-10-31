@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { Mail, User, UserPlus, AlertCircle } from 'lucide-react';
+import { Mail, User, UserPlus, AlertCircle, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { staffService } from '../../../services/staffService';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/Button';
-import { validateEmail } from '../../../utils/validators';
+import { validateEmail, validatePassword } from '../../../utils/validators';
 
+// Creates a staff account through the admin-only `create-staff` Edge Function.
+// The admin sets the first password; the same password rule is enforced server-side.
 export function InviteStaffModal({ isOpen, onClose, onStaffInvited }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -27,22 +30,30 @@ export function InviteStaffModal({ isOpen, onClose, onStaffInvited }) {
       return;
     }
 
+    const check = validatePassword(password);
+    if (!check.isValid) {
+      setErrorMessage(`Password: ${check.errors.join('. ')}.`);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await staffService.inviteStaff({
+      await staffService.createStaff({
         email: email.trim(),
         fullName: fullName.trim(),
+        password,
       });
 
-      toast.success(`Invitation successfully sent to ${email}`);
+      toast.success(`Staff account created for ${email.trim()}`);
       setFullName('');
       setEmail('');
+      setPassword('');
       onStaffInvited?.();
       onClose();
     } catch (err) {
-      console.error('Invite staff error:', err);
-      const msg = err.message || 'Failed to send invitation. Make sure the Edge Function is deployed.';
+      console.error('Create staff error:', err);
+      const msg = err.message || 'Failed to create the staff account.';
       setErrorMessage(msg);
       toast.error(msg);
     } finally {
@@ -54,8 +65,8 @@ export function InviteStaffModal({ isOpen, onClose, onStaffInvited }) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Invite Staff Member"
-      description="Send an invitation link for a new staff member to join SubFlow."
+      title="Add Staff Member"
+      description="Create a staff account. They can sign in straight away with the password you set."
     >
       {errorMessage && (
         <div className="mb-4 rounded-lg bg-rose-50 border border-rose-200 p-3 flex items-start gap-2.5 text-xs text-rose-700">
@@ -81,7 +92,16 @@ export function InviteStaffModal({ isOpen, onClose, onStaffInvited }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           leftIcon={<Mail className="w-4 h-4" />}
-          helperText="The user will receive an email invitation to set up their password."
+          required
+        />
+
+        <Input
+          label="Temporary Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          leftIcon={<Lock className="w-4 h-4" />}
+          helperText="At least 9 characters with an uppercase letter, a lowercase letter and a special character."
           required
         />
 
@@ -99,11 +119,10 @@ export function InviteStaffModal({ isOpen, onClose, onStaffInvited }) {
             isLoading={isLoading}
             leftIcon={<UserPlus className="w-4 h-4" />}
           >
-            Send Invitation
+            Create Staff Account
           </Button>
         </div>
       </form>
     </Modal>
   );
 }
-

@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Layers,
   Briefcase,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { Dropdown } from '../components/ui/Dropdown';
@@ -24,8 +25,9 @@ const staffNavItems = [
   { name: 'My Profile', to: '/staff/profile', icon: UserCheck },
   { name: 'Customers', to: '/staff/customers', icon: Users, comingSoon: true },
   { name: 'Quotations', to: '/staff/quotations', icon: FileSpreadsheet, comingSoon: true },
-  { name: 'Subscriptions', to: '/staff/subscriptions', icon: Repeat, comingSoon: true },
-  { name: 'Invoices', to: '/staff/invoices', icon: Receipt, comingSoon: true },
+  { name: 'Subscriptions', to: '/staff/subscriptions', icon: Repeat },
+  { name: 'Invoices', to: '/staff/invoices', icon: Receipt },
+  { name: 'Payments', to: '/staff/payments', icon: Wallet },
 ];
 
 export function StaffLayout() {

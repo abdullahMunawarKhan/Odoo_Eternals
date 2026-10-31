@@ -14,6 +14,10 @@ import {
   ChevronDown,
   Layers,
   Shield,
+  Percent,
+  Wallet,
+  Ticket,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { Dropdown } from '../components/ui/Dropdown';
@@ -23,10 +27,14 @@ import { cn } from '../utils/cn';
 const adminNavItems = [
   { name: 'Overview', to: '/admin', icon: LayoutDashboard, end: true },
   { name: 'Staff Management', to: '/admin/staff', icon: Users },
-  { name: 'Products', to: '/admin/products', icon: Package, comingSoon: true },
-  { name: 'Plans', to: '/admin/plans', icon: CalendarCheck, comingSoon: true },
-  { name: 'Subscriptions', to: '/admin/subscriptions', icon: Repeat, comingSoon: true },
-  { name: 'Invoices', to: '/admin/invoices', icon: Receipt, comingSoon: true },
+  { name: 'Products', to: '/admin/products', icon: Package },
+  { name: 'Plans', to: '/admin/plans', icon: CalendarCheck },
+  { name: 'Taxes & Terms', to: '/admin/taxes', icon: Percent },
+  { name: 'Discounts', to: '/admin/discounts', icon: Ticket },
+  { name: 'Templates', to: '/admin/templates', icon: FileText },
+  { name: 'Subscriptions', to: '/admin/subscriptions', icon: Repeat },
+  { name: 'Invoices', to: '/admin/invoices', icon: Receipt },
+  { name: 'Payments', to: '/admin/payments', icon: Wallet },
   { name: 'Settings', to: '/admin/settings', icon: Settings, comingSoon: true },
 ];
 

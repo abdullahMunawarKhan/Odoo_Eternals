@@ -7,7 +7,7 @@ export const staffService = {
   async getStaffList() {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, role, created_at, updated_at')
+      .select('id, full_name, email, role, is_active, created_at')
       .in('role', ['staff', 'admin'])
       .order('created_at', { ascending: false });
 
@@ -19,43 +19,42 @@ export const staffService = {
   },
 
   /**
-   * Invite a new staff member via Supabase Edge Function
+   * Create a staff account with the admin-only `create-staff` Edge Function
+   * (docs/API.md section 4). The staff member can log in right away.
+   * Errors come back as { error: { code, message, field } }.
    */
-  async inviteStaff({ email, fullName }) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      throw new Error('You must be signed in as an admin to invite staff.');
-    }
-
-    const redirectTo = `${window.location.origin}/reset-password`;
-
-    // Invoke the Edge Function 'invite-staff'
-    const { data, error } = await supabase.functions.invoke('invite-staff', {
+  async createStaff({ email, fullName, password }) {
+    const { data, error } = await supabase.functions.invoke('create-staff', {
       body: {
         email: email.trim().toLowerCase(),
         full_name: fullName.trim(),
-        redirectTo,
+        password,
       },
     });
 
     if (error) {
-      // FunctionsHttpError contains the response payload in error.context
-      let errorMsg = error.message;
+      let message = error.message;
       try {
         if (error.context && typeof error.context.json === 'function') {
           const body = await error.context.json();
-          if (body?.error) errorMsg = body.error;
+          if (body?.error?.message) message = body.error.message;
         }
       } catch {
-        // Fallback to error.message
+        // keep the default message
       }
-      throw new Error(errorMsg || 'Failed to send staff invitation');
+      throw new Error(message || 'Failed to create the staff account');
     }
 
-    if (data?.error) {
-      throw new Error(data.error);
-    }
+    return data;
+  },
 
+  /**
+   * Activate or deactivate an account (admin only). A deactivated user can still sign
+   * in but sees no data. Returns the updated profile row.
+   */
+  async setActive(userId, active) {
+    const { data, error } = await supabase.rpc('set_user_active', { user_id: userId, active });
+    if (error) throw new Error(error.message);
     return data;
   },
 

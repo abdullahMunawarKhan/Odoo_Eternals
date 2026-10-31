@@ -22,6 +22,16 @@ const ResetPasswordForm = lazy(() => import('../features/auth/ResetPasswordForm'
 // Admin Pages (Lazy loaded)
 const AdminOverview = lazy(() => import('../pages/admin/AdminOverview').then((m) => ({ default: m.AdminOverview })));
 const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage').then((m) => ({ default: m.AdminStaffPage })));
+const AdminProductsPage = lazy(() => import('../pages/admin/AdminProductsPage').then((m) => ({ default: m.AdminProductsPage })));
+const AdminPlansPage = lazy(() => import('../pages/admin/AdminPlansPage').then((m) => ({ default: m.AdminPlansPage })));
+const AdminTaxesPage = lazy(() => import('../pages/admin/AdminTaxesPage').then((m) => ({ default: m.AdminTaxesPage })));
+const AdminDiscountsPage = lazy(() => import('../pages/admin/AdminDiscountsPage').then((m) => ({ default: m.AdminDiscountsPage })));
+const AdminTemplatesPage = lazy(() => import('../pages/admin/AdminTemplatesPage').then((m) => ({ default: m.AdminTemplatesPage })));
+const AdminSubscriptionsPage = lazy(() => import('../pages/admin/AdminSubscriptionsPage').then((m) => ({ default: m.AdminSubscriptionsPage })));
+const AdminSubscriptionDetailPage = lazy(() => import('../pages/admin/AdminSubscriptionDetailPage').then((m) => ({ default: m.AdminSubscriptionDetailPage })));
+const AdminInvoicesPage = lazy(() => import('../pages/admin/AdminInvoicesPage').then((m) => ({ default: m.AdminInvoicesPage })));
+const AdminInvoiceDetailPage = lazy(() => import('../pages/admin/AdminInvoiceDetailPage').then((m) => ({ default: m.AdminInvoiceDetailPage })));
+const AdminPaymentsPage = lazy(() => import('../pages/admin/AdminPaymentsPage').then((m) => ({ default: m.AdminPaymentsPage })));
 
 // Staff Pages (Lazy loaded)
 const StaffOverview = lazy(() => import('../features/staff/StaffOverview').then((m) => ({ default: m.StaffOverview })));
@@ -92,70 +102,16 @@ export function AppRoutes() {
         >
           <Route index element={<AdminOverview />} />
           <Route path="staff" element={<AdminStaffPage />} />
-          <Route
-            path="products"
-            element={
-              <ComingSoon
-                title="Products Catalog"
-                description="Define subscription products, add-ons, feature entitlements, and metered usage components."
-                features={[
-                  'Multi-currency product pricing catalogs',
-                  'Feature gating and entitlements management',
-                  'Metered and usage-based billing units',
-                  'Product versioning and lifecycle controls',
-                ]}
-                backPath="/admin"
-              />
-            }
-          />
-          <Route
-            path="plans"
-            element={
-              <ComingSoon
-                title="Subscription Plans"
-                description="Design and manage pricing tiers, free trial durations, and recurring billing cycles."
-                features={[
-                  'Monthly, quarterly, and annual billing cadences',
-                  'Configurable free trial periods with card capture',
-                  'Tiered, volume, and per-seat pricing models',
-                  'Grandfathered plans and migration rules',
-                ]}
-                backPath="/admin"
-              />
-            }
-          />
-          <Route
-            path="subscriptions"
-            element={
-              <ComingSoon
-                title="Subscription Operations"
-                description="Monitor active subscriber lifecycles, upgrades, downgrades, cancellations, and churn."
-                features={[
-                  'Real-time MRR and ARR growth metrics',
-                  'Pro-rated plan upgrade and downgrade engine',
-                  'Automatic dunning and payment retry workflows',
-                  'Cancellation surveys and churn mitigation',
-                ]}
-                backPath="/admin"
-              />
-            }
-          />
-          <Route
-            path="invoices"
-            element={
-              <ComingSoon
-                title="Invoicing & Billing History"
-                description="Automated tax-compliant PDF invoice creation, payment status reconciliation, and refunds."
-                features={[
-                  'Automated monthly invoice distribution via email',
-                  'Tax calculation (VAT, GST, Sales Tax)',
-                  'Stripe & payment gateway transaction matching',
-                  'Credit note issuance and refund logging',
-                ]}
-                backPath="/admin"
-              />
-            }
-          />
+          <Route path="products" element={<AdminProductsPage />} />
+          <Route path="plans" element={<AdminPlansPage />} />
+          <Route path="taxes" element={<AdminTaxesPage />} />
+          <Route path="discounts" element={<AdminDiscountsPage />} />
+          <Route path="templates" element={<AdminTemplatesPage />} />
+          <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
+          <Route path="subscriptions/:id" element={<AdminSubscriptionDetailPage />} />
+          <Route path="invoices" element={<AdminInvoicesPage />} />
+          <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
+          <Route path="payments" element={<AdminPaymentsPage />} />
           <Route
             path="settings"
             element={
@@ -219,38 +175,11 @@ export function AppRoutes() {
               />
             }
           />
-          <Route
-            path="subscriptions"
-            element={
-              <ComingSoon
-                title="Managed Subscriptions"
-                description="Help customers adjust subscription plans, handle renewals, and pause services."
-                features={[
-                  'Assisted customer plan upgrades and renewals',
-                  'Scheduled subscription pause and resume',
-                  'Add-on activation and license allocation',
-                  'Renewal notification alerts',
-                ]}
-                backPath="/staff"
-              />
-            }
-          />
-          <Route
-            path="invoices"
-            element={
-              <ComingSoon
-                title="Billing & Invoices"
-                description="Review customer invoice statuses, process manual payments, and send reminders."
-                features={[
-                  'Customer invoice lookup and PDF download',
-                  'Overdue payment reminder dispatch',
-                  'Manual payment recording (wire / check)',
-                  'Invoice discrepancy investigation',
-                ]}
-                backPath="/staff"
-              />
-            }
-          />
+          <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
+          <Route path="subscriptions/:id" element={<AdminSubscriptionDetailPage />} />
+          <Route path="invoices" element={<AdminInvoicesPage />} />
+          <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
+          <Route path="payments" element={<AdminPaymentsPage />} />
         </Route>
 
         {/* Customer Protected Routes */}
