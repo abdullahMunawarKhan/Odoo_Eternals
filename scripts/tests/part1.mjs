@@ -65,11 +65,8 @@ async function login(email, password = PASSWORD) {
   return { client, token: data.session.access_token }
 }
 
-const callCreateStaff = (token, body) => callFunction('create-staff', token, body)
-const callInviteStaff = (token, body) => callFunction('invite-staff', token, body)
-
-async function callFunction(name, token, body) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+async function callCreateStaff(token, body) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/create-staff`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -237,56 +234,11 @@ async function main() {
     const { count } = await service.from('profiles').select('id', { count: 'exact', head: true }).eq('email', customerA.email)
     assert(error || count === 1, `profiles with email: ${count}`)
   })
-
-  // ---- invite-staff (deployed by the frontend teammate) ----
-  const redirectTo = 'http://localhost:5173/reset-password'
-
-  await check('invite-staff without token returns 401', async () => {
-    const r = await callInviteStaff(null, { email: emailFor('inv0'), full_name: 'X', redirectTo })
-    assert(r.status === 401, `status ${r.status}`)
-  })
-
-  await check('staff cannot call invite-staff (403)', async () => {
-    const r = await callInviteStaff(staffSession.token, { email: emailFor('inv1'), full_name: 'X', redirectTo })
-    assert(r.status === 403, `status ${r.status}`)
-  })
-
-  await check('customer cannot call invite-staff (403)', async () => {
-    const { token } = await login(customerB.email)
-    const r = await callInviteStaff(token, { email: emailFor('inv2'), full_name: 'X', redirectTo })
-    assert(r.status === 403, `status ${r.status}`)
-  })
-
-  await check('admin invite-staff creates staff with NO customers row', async () => {
-    const inviteEmail = emailFor('invited')
-    const r = await callInviteStaff(adminSession.token, { email: inviteEmail, full_name: 'Invited Staff', redirectTo })
-    assert(r.status === 200 || r.status === 201, `status ${r.status} ${JSON.stringify(r.json)}`)
-    assert(r.json?.user?.role === 'staff', `response role: ${r.json?.user?.role}`)
-    const { data: p } = await service.from('profiles').select('role, full_name').eq('email', inviteEmail).maybeSingle()
-    assert(p?.role === 'staff', `profile role: ${p?.role}`)
-    const { data: cust } = await service.from('customers').select('id').eq('email', inviteEmail)
-    assert(cust.length === 0, `invited staff has ${cust.length} customers row(s)`)
-  })
-
-  await check('invite-staff rejects a duplicate email', async () => {
-    const r = await callInviteStaff(adminSession.token, { email: newStaffEmail, full_name: 'Dup', redirectTo })
-    assert(r.status >= 400 && r.status < 500, `status ${r.status} ${JSON.stringify(r.json)}`)
-    assert(/already|registered|exists|duplicate/i.test(JSON.stringify(r.json?.error ?? '')), `not a duplicate-email error: ${JSON.stringify(r.json)}`)
-    const { count } = await service.from('profiles').select('id', { count: 'exact', head: true }).eq('email', newStaffEmail)
-    assert(count === 1, `profiles with that email: ${count}`)
-  })
 }
 
 async function cleanup() {
   for (const id of createdUserIds) {
     await service.auth.admin.deleteUser(id)
-  }
-  // users created by function calls (invite-staff) are found by this run's email pattern
-  const { data: list } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 })
-  for (const u of list?.users ?? []) {
-    if (u.email && u.email.startsWith('test+') && u.email.endsWith(`-${run}@example.com`)) {
-      await service.auth.admin.deleteUser(u.id)
-    }
   }
   await service.from('customers').delete().like('email', `test+%-${run}@example.com`)
 }

@@ -49,9 +49,7 @@ Role rules:
 - Public signup always creates a `customer`. The role is never read from the signup form or user metadata sent by the client.
 - Staff are created only by the `create-staff` Edge Function, which first verifies the caller is an admin.
 - The first admin is created by manually setting `profiles.role = 'admin'` in the database.
-- Helper SQL functions used in RLS: `public.current_role()`, `public.is_staff_or_admin()` and `public.is_active_user()`, all `security definer` with a fixed `search_path`.
-- Deactivation: `profiles.is_active = false` means no access. `current_role()` returns null and `is_staff_or_admin()` returns false for an inactive user, and every "own row" policy also requires `is_active_user()`, so a deactivated customer loses their profile, customer record and (in later Parts) subscriptions, invoices and payments. The user can still sign in to Supabase Auth, but every query returns nothing; the app should treat an empty profile as "account inactive, contact an admin". Every future "own data" policy must include `public.is_active_user()`.
-- `profiles.is_active` and `profiles.role` can never be changed directly by a client. The only way to change `is_active` is the admin-only function `public.set_user_active(user_id, active)`: an admin cannot deactivate themselves, and it changes nothing else. Role changes happen only via SQL (first admin) or the `create-staff` function.
+- Helper SQL functions used in RLS: `public.current_role()` and `public.is_staff_or_admin()`, both `security definer` with a fixed `search_path`.
 
 ## 2. Authentication rules
 
@@ -160,15 +158,6 @@ Backward transitions other than Paused -> Active are not allowed. All transition
 
 Creating from a template: `create_subscription_from_template(template_id, customer_id, start_date)` copies the plan, payment term and lines (with current effective prices) into a new Draft subscription. Expiry date defaults to start_date + 1 year and is editable.
 
-Part 3 implementation rules (decided while building):
-- A subscription can only be created or moved to a plan that is available today (`plan_is_available`), enforced by a trigger.
-- Every line's `unit_price`, `tax_id` and `amount` are set by the database (`effective_price`, the product's tax, `quantity x unit_price`); values sent by the client are ignored. Quantity below the plan's `min_quantity` is rejected, never corrected.
-- Lines can only be added or changed while the subscription is `draft` or `quotation`.
-- Clients can never change `subscriptions.status`, `number`, `created_by` or `next_billing_date` directly (admins included), and a client-created subscription always starts as `draft`. Only `transition_subscription` changes status.
-- `plan.pausable` is required to pause or resume by anyone. `plan.closable` is required for an owning customer to close; admin and staff can always close. `plan.renewable` is required to renew by anyone. Renew is allowed on any active subscription.
-- Subscription-level discounts are attached with `attach_discount(subscription_id, discount_id)` (admin, staff). Only `applies_to = 'subscription'` discounts can be attached; eligibility (dates, usage, minimums) is checked at invoice time, not at attach time. Direct inserts into `subscription_discounts` are not allowed.
-- Customer "own" access uses `public.my_customer_id()`, which is null for deactivated users.
-
 ### 4.3 Pricing and invoice math (one defined order)
 
 For each invoice, build lines like this:
@@ -229,13 +218,11 @@ Draft -> Confirmed -> Paid
 |---|---|---|---|
 | profiles | all | read all | own row |
 | customers | all | all | own row (read) |
-| products, variants, plans, taxes, payment_terms, discounts, templates (+ template lines) | all | read | none on the tables (see views below) |
+| products, variants, plans, taxes, payment_terms, discounts, templates | all | read | none (customers never see cost price) |
 | subscriptions, lines | all | all (no direct status update) | own only, read |
 | invoices, invoice_lines | all | all (changes via functions) | own only, read |
 | payments | all | all (insert via function) | own only, read |
 | subscription_status_log | all | read | own subscriptions, read |
-
-Customers cannot select from `products`, `product_variants`, `plans`, `discounts` or the template tables directly, so `cost_price` and other admin-only columns never reach them, and table RLS is not weakened to allow it. Customers read the catalog only through three views that expose a fixed list of non-sensitive columns and only active rows: `products_public (id, name, type)`, `variants_public (id, product_id, attribute_name, value)`, `plans_public (id, name, billing_period, price, min_quantity, closable, pausable, renewable, auto_close)`. The plan columns beyond name and period are not secret and customers need them to show the right buttons (pause, close, renew) and the minimum quantity; nothing else from `plans` (tax, dates, `is_active`) is exposed. The views are owned by the migration role (not `security_invoker`), so they bypass table RLS by design; never add `cost_price`, `notes`, `sales_price`, flags or any other column to them without updating this section first.
 
 "Own" means `customer_id` belongs to a `customers` row where `user_id = auth.uid()`.
 Customer actions (pause, close, renew) go through `transition_subscription`, which checks ownership and plan flags inside the function.
